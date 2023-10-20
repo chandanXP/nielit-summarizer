@@ -3,15 +3,17 @@ import pandas as pd
 from abstractive_summarizer import text_regular_expression, get_ranked_sentences_indices, get_paraphrased_paragraph
 from target_text import speech
 from transformers import PegasusForConditionalGeneration, PegasusTokenizerFast
-import multiprocessing
-from functools import partial
-
 
 model = PegasusForConditionalGeneration.from_pretrained("tuner007/pegasus_paraphrase")
 tokenizer = PegasusTokenizerFast.from_pretrained("tuner007/pegasus_paraphrase")
 
 
 def process_summary(text, model, tokenizer, csv_file, column_name):
+    if not isinstance(text, str):
+        # Handle NaN or non-string values
+        print(f"Skipped processing an invalid value in '{column_name}' column.")
+        return
+
     num_sentences = 8
     sentences = text_regular_expression(text)
 
@@ -27,18 +29,17 @@ def process_summary(text, model, tokenizer, csv_file, column_name):
     df.to_csv(csv_file, mode='a', header=False, index=False)
     print(f'Appended "{extractive_summary}" to {csv_file} in the "{column_name}" column (new row).')
 
-
 def main():
-    # Define your list of string values
-    texts = ['text1', 'text2', 'text3', ...]  # Replace with your actual text data
+    # Read data from an Excel file into a Pandas DataFrame
+    excel_file = 'metaverse-summary.xlsx'  # Replace with the path to your Excel file
+    df = pd.read_excel(excel_file)
 
-    # Set the number of CPU cores to utilize
-    num_cores = multiprocessing.cpu_count()
+    # Extract the values from a specific column in the DataFrame
+    column_name = 'content'  # Replace with the actual column name
+    texts = df[column_name].tolist()
 
-    # Create a multiprocessing pool
-    with multiprocessing.Pool(processes=num_cores) as pool:
-        func = partial(process_summary, model=model, tokenizer=tokenizer, csv_file='final_summary.csv', column_name='text_summary')
-        pool.map(func, texts)
+    for text in texts:
+        process_summary(text, model, tokenizer, 'final_summary.csv', 'text_summ')
 
 
 if __name__ == "__main__":
